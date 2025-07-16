@@ -143,14 +143,14 @@ export const MealSplitter: FC = () => {
           );
           let cssString = '';
           for (const sheet of styleSheets) {
-            if (sheet.cssRules) {
-                try {
-                    cssString += Array.from(sheet.cssRules)
-                    .map((rule) => rule.cssText)
-                    .join(' ');
-                } catch (e) {
-                    console.warn("Can't read the css rules of: " + sheet.href, e);
-                }
+            try {
+              if (sheet.cssRules) {
+                  cssString += Array.from(sheet.cssRules)
+                  .map((rule) => rule.cssText)
+                  .join(' ');
+              }
+            } catch (e) {
+                console.warn("Can't read the css rules of: " + sheet.href, e);
             }
           }
           return cssString;
