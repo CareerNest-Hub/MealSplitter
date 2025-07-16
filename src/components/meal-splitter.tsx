@@ -19,7 +19,6 @@ type Item = {
   id: string;
   name: string;
   price: number;
-  quantity: number;
   consumers: Set<string>;
 };
 
@@ -72,15 +71,17 @@ export const MealSplitter: FC = () => {
     const name = newItemName.trim();
     const price = parseFloat(newItemPrice);
     const quantity = parseInt(newItemQuantity, 10);
+
     if (name && !isNaN(price) && price > 0 && !isNaN(quantity) && quantity > 0) {
-      const newItem: Item = {
+      const newItems: Item[] = Array.from({ length: quantity }, () => ({
         id: crypto.randomUUID(),
         name,
         price,
-        quantity,
         consumers: new Set(),
-      };
-      setItems(prevItems => [...prevItems, newItem]);
+      }));
+
+      setItems(prevItems => [...prevItems, ...newItems]);
+      
       setNewItemName('');
       setNewItemPrice('');
       setNewItemQuantity('1');
@@ -121,7 +122,7 @@ export const MealSplitter: FC = () => {
     let totalBill = 0;
 
     items.forEach(item => {
-      const itemTotal = item.price * item.quantity;
+      const itemTotal = item.price;
       totalBill += itemTotal;
       if (item.consumers.size > 0) {
         const costPerPerson = itemTotal / item.consumers.size;
@@ -358,7 +359,7 @@ export const MealSplitter: FC = () => {
                   {items.map((item, index) => (
                     <div key={item.id} className="p-4 border rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-4 bg-background hover:bg-accent/50 transition-colors animate-in fade-in-0" style={{animationDelay: `${index * 50}ms`}}>
                       <div className="flex-grow">
-                        <p className="font-semibold">{item.name} {item.quantity > 1 && `(x${item.quantity})`}</p>
+                        <p className="font-semibold">{item.name}</p>
                         <p className="text-sm text-muted-foreground">₭{item.price.toFixed(2)} each</p>
                       </div>
                       <div className="flex flex-wrap gap-x-4 gap-y-2">
