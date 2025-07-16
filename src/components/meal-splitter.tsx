@@ -29,6 +29,8 @@ export const MealSplitter: FC = () => {
   const [newItemQuantity, setNewItemQuantity] = useState('1');
 
   const resultsCardRef = useRef<HTMLDivElement>(null);
+  const priceInputRef = useRef<HTMLInputElement>(null);
+  const quantityInputRef = useRef<HTMLInputElement>(null);
 
   const handleAddFriend = () => {
     const trimmedName = newFriendName.trim();
@@ -170,9 +172,24 @@ export const MealSplitter: FC = () => {
     }
   };
 
-  const handleItemKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleNameInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-        handleAddItem();
+      e.preventDefault();
+      priceInputRef.current?.focus();
+    }
+  };
+
+  const handlePriceInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      quantityInputRef.current?.focus();
+    }
+  };
+
+  const handleQuantityInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddItem();
     }
   };
   
@@ -226,29 +243,31 @@ export const MealSplitter: FC = () => {
                         type="text" 
                         value={newItemName}
                         onChange={(e) => setNewItemName(e.target.value)}
-                        onKeyDown={handleItemKeyDown}
+                        onKeyDown={handleNameInputKeyDown}
                         placeholder="Item name (e.g., Pizza)"
                         className="bg-transparent"
                     />
                  </div>
                 <div className="flex gap-4">
                     <Input 
+                      ref={priceInputRef}
                       id="item-price-input"
                       type="number"
                       value={newItemPrice}
                       onChange={(e) => setNewItemPrice(e.target.value)}
                       placeholder="Price"
                       className="w-2/3"
-                      onKeyDown={handleItemKeyDown}
+                      onKeyDown={handlePriceInputKeyDown}
                     />
                     <Input 
+                      ref={quantityInputRef}
                       type="number"
                       value={newItemQuantity}
                       min="1"
                       onChange={(e) => setNewItemQuantity(e.target.value)}
                       placeholder="Qty"
                        className="w-1/3"
-                       onKeyDown={handleItemKeyDown}
+                       onKeyDown={handleQuantityInputKeyDown}
                     />
                 </div>
               </CardContent>
