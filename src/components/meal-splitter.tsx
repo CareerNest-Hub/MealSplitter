@@ -9,9 +9,10 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from "@/hooks/use-toast"
 import { UserPlus, Utensils, Trash2, X, Users, PlusCircle, ImageDown, Sparkles, Loader2 } from 'lucide-react';
-import { suggestMenuItems } from '@/ai/flows/suggest-menu-items';
+import { guessMenuItem } from '@/ai/flows/guess-menu-item';
 
 type Item = {
   id: string;
@@ -30,7 +31,8 @@ export const MealSplitter: FC = () => {
   const [newItemPrice, setNewItemPrice] = useState('');
   const [newItemQuantity, setNewItemQuantity] = useState('1');
   
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [aiEnabled, setAiEnabled] = useState(true);
+  const [suggestion, setSuggestion] = useState('');
   const [isSuggesting, setIsSuggesting] = useState(false);
 
   const resultsCardRef = useRef<HTMLDivElement>(null);
@@ -80,7 +82,7 @@ export const MealSplitter: FC = () => {
       setNewItemName('');
       setNewItemPrice('');
       setNewItemQuantity('1');
-      setSuggestions([]);
+      setSuggestion('');
     } else {
        toast({
         title: "Invalid Item",
@@ -173,41 +175,59 @@ export const MealSplitter: FC = () => {
     }
   };
 
-  const fetchSuggestions = useCallback(async (query: string) => {
-    if (query.trim().length < 2) {
-        setSuggestions([]);
+  const fetchSuggestion = useCallback(async (query: string) => {
+    if (!aiEnabled || query.trim().length < 2) {
+        setSuggestion('');
         return;
     }
     setIsSuggesting(true);
     try {
-        const result = await suggestMenuItems(query);
-        setSuggestions(result.suggestions);
+        const result = await guessMenuItem(query);
+        if (result.guess.toLowerCase().startsWith(query.toLowerCase())) {
+            setSuggestion(result.guess);
+        } else {
+            setSuggestion('');
+        }
     } catch (error) {
-        console.error("Error fetching suggestions:", error);
-        setSuggestions([]);
+        console.error("Error fetching suggestion:", error);
+        setSuggestion('');
     } finally {
         setIsSuggesting(false);
     }
-  }, []);
+  }, [aiEnabled]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
         if (newItemName) {
-            fetchSuggestions(newItemName);
+            fetchSuggestion(newItemName);
         } else {
-            setSuggestions([]);
+            setSuggestion('');
         }
     }, 500); // Debounce time of 500ms
 
     return () => {
         clearTimeout(handler);
     };
-  }, [newItemName, fetchSuggestions]);
-
-  const handleSuggestionClick = (suggestion: string) => {
-    setNewItemName(suggestion);
-    setSuggestions([]);
+  }, [newItemName, fetchSuggestion]);
+  
+  const handleItemNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Tab' && suggestion) {
+      e.preventDefault();
+      setNewItemName(suggestion);
+      setSuggestion('');
+    }
+    if (e.key === 'Enter') {
+        handleAddItem();
+    }
   };
+
+  const suggestionDisplay = useMemo(() => {
+    if (!suggestion || !newItemName) return '';
+    if (suggestion.toLowerCase().startsWith(newItemName.toLowerCase())) {
+      return newItemName + suggestion.substring(newItemName.length);
+    }
+    return '';
+  }, [suggestion, newItemName]);
 
   return (
     <div className="container mx-auto max-w-7xl">
@@ -249,7 +269,13 @@ export const MealSplitter: FC = () => {
 
             <Card className="flex flex-col">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 font-headline"><Utensils className="text-primary"/> Add Item</CardTitle>
+                <div className="flex justify-between items-center">
+                    <CardTitle className="flex items-center gap-2 font-headline"><Utensils className="text-primary"/> Add Item</CardTitle>
+                    <div className="flex items-center space-x-2">
+                        <Switch id="ai-switch" checked={aiEnabled} onCheckedChange={setAiEnabled} />
+                        <Label htmlFor="ai-switch" className="flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-yellow-400" /> AI</Label>
+                    </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4 flex-grow">
                  <div className="relative">
@@ -257,28 +283,17 @@ export const MealSplitter: FC = () => {
                         type="text" 
                         value={newItemName}
                         onChange={(e) => setNewItemName(e.target.value)}
+                        onKeyDown={handleItemNameKeyDown}
                         placeholder="Item name (e.g., Pizza)"
+                        className="bg-transparent"
                     />
+                     <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                        <span className="text-muted-foreground opacity-50">{suggestionDisplay}</span>
+                    </div>
                      {isSuggesting && (
                         <Loader2 className="animate-spin h-5 w-5 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2" />
                     )}
                  </div>
-                 {suggestions.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                        {suggestions.map((suggestion, index) => (
-                            <Button
-                                key={index}
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleSuggestionClick(suggestion)}
-                                className="text-xs"
-                            >
-                                <Sparkles className="mr-2 h-3 w-3 text-yellow-400" />
-                                {suggestion}
-                            </Button>
-                        ))}
-                    </div>
-                 )}
                 <div className="flex gap-4">
                     <Input 
                       type="number"
@@ -286,6 +301,7 @@ export const MealSplitter: FC = () => {
                       onChange={(e) => setNewItemPrice(e.target.value)}
                       placeholder="Price"
                       className="w-2/3"
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddItem()}
                     />
                     <Input 
                       type="number"
@@ -294,11 +310,12 @@ export const MealSplitter: FC = () => {
                       onChange={(e) => setNewItemQuantity(e.target.value)}
                       placeholder="Qty"
                        className="w-1/3"
+                       onKeyDown={(e) => e.key === 'Enter' && handleAddItem()}
                     />
                 </div>
               </CardContent>
               <CardFooter>
-                 <Button onClick={handleAddItem} className="w-full" onKeyDown={(e) => e.key === 'Enter' && handleAddItem()}><PlusCircle className="mr-2 h-4 w-4"/>Add Item to Bill</Button>
+                 <Button onClick={handleAddItem} className="w-full"><PlusCircle className="mr-2 h-4 w-4"/>Add Item to Bill</Button>
               </CardFooter>
             </Card>
           </div>
