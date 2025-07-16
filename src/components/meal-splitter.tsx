@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, type FC, useRef } from 'react';
@@ -10,7 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from "@/hooks/use-toast"
-import { UserPlus, Trash2, X, Users, PlusCircle, ImageDown, BookOpen } from 'lucide-react';
+import { UserPlus, Trash2, X, Users, PlusCircle, ImageDown, BookOpen, Pencil, Save, Ban } from 'lucide-react';
 
 type Item = {
   id: string;
@@ -27,6 +28,10 @@ export const MealSplitter: FC = () => {
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
   const [newItemQuantity, setNewItemQuantity] = useState('1');
+
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editedItemData, setEditedItemData] = useState<{ name: string; price: string }>({ name: '', price: '' });
+
 
   const resultsCardRef = useRef<HTMLDivElement>(null);
   const priceInputRef = useRef<HTMLInputElement>(null);
@@ -107,6 +112,40 @@ export const MealSplitter: FC = () => {
         }
         return item;
       }));
+  };
+
+  const handleStartEditing = (item: Item) => {
+    setEditingItemId(item.id);
+    setEditedItemData({ name: item.name, price: item.price.toString() });
+  };
+
+  const handleCancelEditing = () => {
+    setEditingItemId(null);
+    setEditedItemData({ name: '', price: '' });
+  };
+
+  const handleUpdateItem = () => {
+    if (!editingItemId) return;
+
+    const name = editedItemData.name.trim();
+    const price = parseFloat(editedItemData.price);
+
+    if (name && !isNaN(price) && price > 0) {
+      setItems(currentItems =>
+        currentItems.map(item =>
+          item.id === editingItemId
+            ? { ...item, name, price }
+            : item
+        )
+      );
+      handleCancelEditing();
+    } else {
+      toast({
+        title: "Invalid Update",
+        description: "Please enter a valid name and price (must be greater than 0).",
+        variant: "destructive",
+      });
+    }
   };
 
   const results = useMemo(() => {
@@ -286,9 +325,31 @@ export const MealSplitter: FC = () => {
                 <div className="space-y-4">
                   {items.map((item, index) => (
                     <div key={item.id} className="p-4 border rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-4 bg-background hover:bg-accent/50 transition-colors animate-in fade-in-0" style={{animationDelay: `${index * 50}ms`}}>
-                      <div className="flex-grow">
-                        <p className="font-semibold">{item.name}</p>
-                        <p className="text-sm text-muted-foreground">₭{item.price.toFixed(2)} each</p>
+                      <div className="flex-grow flex items-center gap-4">
+                        {editingItemId === item.id ? (
+                           <>
+                           <Input
+                             type="text"
+                             value={editedItemData.name}
+                             onChange={(e) => setEditedItemData({ ...editedItemData, name: e.target.value })}
+                             className="h-8"
+                           />
+                           <div className="flex items-center gap-1">
+                            <span>₭</span>
+                             <Input
+                               type="number"
+                               value={editedItemData.price}
+                               onChange={(e) => setEditedItemData({ ...editedItemData, price: e.target.value })}
+                               className="h-8 w-24"
+                             />
+                           </div>
+                         </>
+                        ) : (
+                          <>
+                            <p className="font-semibold">{item.name}</p>
+                            <p className="text-sm text-muted-foreground">₭{item.price.toFixed(2)} each</p>
+                          </>
+                        )}
                       </div>
                       <div className="flex flex-wrap gap-x-4 gap-y-2">
                         {friends.map(friend => (
@@ -297,14 +358,31 @@ export const MealSplitter: FC = () => {
                               id={`${item.id}-${friend}`}
                               checked={item.consumers.has(friend)}
                               onCheckedChange={(checked) => handleConsumerToggle(item.id, friend, checked)}
+                              disabled={editingItemId === item.id}
                             />
                             <Label htmlFor={`${item.id}-${friend}`}>{friend}</Label>
                           </div>
                         ))}
                       </div>
-                      <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)} className="text-muted-foreground hover:text-destructive self-start md:self-center">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-1 self-start md:self-center">
+                        {editingItemId === item.id ? (
+                          <>
+                             <Button variant="ghost" size="icon" onClick={handleUpdateItem} className="text-green-600 hover:text-green-700">
+                              <Save className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={handleCancelEditing} className="text-muted-foreground hover:text-destructive">
+                              <Ban className="h-4 w-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          <Button variant="ghost" size="icon" onClick={() => handleStartEditing(item)} className="text-muted-foreground hover:text-primary">
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)} className="text-muted-foreground hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -363,3 +441,5 @@ export const MealSplitter: FC = () => {
     </div>
   );
 };
+
+    
