@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, type FC, useRef } from 'react';
+import { useState, useMemo, type FC, useRef, useEffect, useCallback } from 'react';
 import { toPng } from 'html-to-image';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from "@/hooks/use-toast"
-import { UserPlus, Utensils, Trash2, X, Users, PlusCircle, ImageDown } from 'lucide-react';
+import { UserPlus, Utensils, Trash2, X, Users, PlusCircle, ImageDown, Sparkles, Loader2 } from 'lucide-react';
+import { suggestMenuItems } from '@/ai/flows/suggest-menu-items';
 
 type Item = {
   id: string;
@@ -28,6 +29,10 @@ export const MealSplitter: FC = () => {
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
   const [newItemQuantity, setNewItemQuantity] = useState('1');
+  
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [isSuggesting, setIsSuggesting] = useState(false);
+
   const resultsCardRef = useRef<HTMLDivElement>(null);
 
   const handleAddFriend = () => {
@@ -75,6 +80,7 @@ export const MealSplitter: FC = () => {
       setNewItemName('');
       setNewItemPrice('');
       setNewItemQuantity('1');
+      setSuggestions([]);
     } else {
        toast({
         title: "Invalid Item",
@@ -167,6 +173,41 @@ export const MealSplitter: FC = () => {
     }
   };
 
+  const fetchSuggestions = useCallback(async (query: string) => {
+    if (query.trim().length < 2) {
+        setSuggestions([]);
+        return;
+    }
+    setIsSuggesting(true);
+    try {
+        const result = await suggestMenuItems(query);
+        setSuggestions(result.suggestions);
+    } catch (error) {
+        console.error("Error fetching suggestions:", error);
+        setSuggestions([]);
+    } finally {
+        setIsSuggesting(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+        if (newItemName) {
+            fetchSuggestions(newItemName);
+        } else {
+            setSuggestions([]);
+        }
+    }, 500); // Debounce time of 500ms
+
+    return () => {
+        clearTimeout(handler);
+    };
+  }, [newItemName, fetchSuggestions]);
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setNewItemName(suggestion);
+    setSuggestions([]);
+  };
 
   return (
     <div className="container mx-auto max-w-7xl">
@@ -211,12 +252,33 @@ export const MealSplitter: FC = () => {
                 <CardTitle className="flex items-center gap-2 font-headline"><Utensils className="text-primary"/> Add Item</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 flex-grow">
-                <Input 
-                  type="text" 
-                  value={newItemName}
-                  onChange={(e) => setNewItemName(e.target.value)}
-                  placeholder="Item name (e.g., Pizza)"
-                />
+                 <div className="relative">
+                    <Input 
+                        type="text" 
+                        value={newItemName}
+                        onChange={(e) => setNewItemName(e.target.value)}
+                        placeholder="Item name (e.g., Pizza)"
+                    />
+                     {isSuggesting && (
+                        <Loader2 className="animate-spin h-5 w-5 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2" />
+                    )}
+                 </div>
+                 {suggestions.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                        {suggestions.map((suggestion, index) => (
+                            <Button
+                                key={index}
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleSuggestionClick(suggestion)}
+                                className="text-xs"
+                            >
+                                <Sparkles className="mr-2 h-3 w-3 text-yellow-400" />
+                                {suggestion}
+                            </Button>
+                        ))}
+                    </div>
+                 )}
                 <div className="flex gap-4">
                     <Input 
                       type="number"
