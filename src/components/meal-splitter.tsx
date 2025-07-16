@@ -133,7 +133,31 @@ export const MealSplitter: FC = () => {
     }
 
     try {
-        const dataUrl = await toPng(resultsCardRef.current, { cacheBust: true, pixelRatio: 2 });
+        const fontEmbedCSS = await (async () => {
+          const styleSheets = Array.from(document.styleSheets).filter(
+            (sheet) =>
+              sheet.href && sheet.href.startsWith('https://fonts.googleapis.com')
+          );
+          let cssString = '';
+          for (const sheet of styleSheets) {
+            if (sheet.cssRules) {
+                try {
+                    cssString += Array.from(sheet.cssRules)
+                    .map((rule) => rule.cssText)
+                    .join(' ');
+                } catch (e) {
+                    console.warn("Can't read the css rules of: " + sheet.href, e);
+                }
+            }
+          }
+          return cssString;
+        })();
+
+        const dataUrl = await toPng(resultsCardRef.current, { 
+            cacheBust: true, 
+            pixelRatio: 2,
+            fontEmbedCSS: fontEmbedCSS,
+        });
         const link = document.createElement('a');
         link.download = 'meal-split-bill.png';
         link.href = dataUrl;
