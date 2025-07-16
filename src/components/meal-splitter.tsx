@@ -10,7 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from "@/hooks/use-toast"
-import { UserPlus, Utensils, Trash2, X, DollarSign, Users, PlusCircle, ImageDown } from 'lucide-react';
+import { UserPlus, Utensils, Trash2, X, Users, PlusCircle, ImageDown } from 'lucide-react';
 
 type Item = {
   id: string;
@@ -252,7 +252,7 @@ export const MealSplitter: FC = () => {
                     <div key={item.id} className="p-4 border rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-4 bg-background hover:bg-accent/50 transition-colors animate-in fade-in-0" style={{animationDelay: `${index * 50}ms`}}>
                       <div className="flex-grow">
                         <p className="font-semibold">{item.name} {item.quantity > 1 && `(x${item.quantity})`}</p>
-                        <p className="text-sm text-muted-foreground">${item.price.toFixed(2)} each</p>
+                        <p className="text-sm text-muted-foreground">₭{item.price.toFixed(2)} each</p>
                       </div>
                       <div className="flex flex-wrap gap-x-4 gap-y-2">
                         {friends.map(friend => (
@@ -286,21 +286,21 @@ export const MealSplitter: FC = () => {
           <Card className="sticky top-8">
             <div ref={resultsCardRef} className="bg-card rounded-t-lg">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 font-headline"><DollarSign className="text-primary"/> The Split</CardTitle>
+                <CardTitle className="flex items-center gap-2 font-headline"><span className="text-primary text-2xl">₭</span> The Split</CardTitle>
               </CardHeader>
               <CardContent>
                 {items.length > 0 && friends.length > 0 ? (
                   <div className="space-y-4">
                     <div className="text-center p-4 bg-muted rounded-lg">
                       <p className="text-sm text-muted-foreground uppercase tracking-wider">Total Bill</p>
-                      <p className="text-4xl font-bold font-headline">${results.totalBill.toFixed(2)}</p>
+                      <p className="text-4xl font-bold font-headline">₭{results.totalBill.toFixed(2)}</p>
                     </div>
                     <Separator />
                     <div className="space-y-2">
                       {results.bill.map(([friend, amount]) => (
                         <div key={friend} className="flex justify-between items-center p-3 rounded-md hover:bg-accent/50 transition-colors">
                           <span className="font-medium text-lg">{friend}</span>
-                          <span className="font-mono font-semibold text-lg">${amount.toFixed(2)}</span>
+                          <span className="font-mono font-semibold text-lg">₭{amount.toFixed(2)}</span>
                         </div>
                       ))}
                     </div>
