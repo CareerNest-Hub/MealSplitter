@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, type FC, useRef, useEffect, useCallback } from 'react';
+import { useState, useMemo, type FC, useRef } from 'react';
 import { toPng } from 'html-to-image';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,11 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { useToast } from "@/hooks/use-toast"
-import { UserPlus, Trash2, X, Users, PlusCircle, ImageDown, Sparkles, Loader2, BookOpen } from 'lucide-react';
-import { guessMenuItem } from '@/ai/flows/guess-menu-item';
-import { suggestMenuItems } from '@/ai/flows/suggest-menu-items';
+import { UserPlus, Trash2, X, Users, PlusCircle, ImageDown, BookOpen } from 'lucide-react';
 
 type Item = {
   id: string;
@@ -30,11 +27,6 @@ export const MealSplitter: FC = () => {
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
   const [newItemQuantity, setNewItemQuantity] = useState('1');
-  
-  const [aiEnabled, setAiEnabled] = useState(true);
-  const [guess, setGuess] = useState('');
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [isSuggesting, setIsSuggesting] = useState(false);
 
   const resultsCardRef = useRef<HTMLDivElement>(null);
 
@@ -85,8 +77,6 @@ export const MealSplitter: FC = () => {
       setNewItemName('');
       setNewItemPrice('');
       setNewItemQuantity('1');
-      setGuess('');
-      setSuggestions([]);
     } else {
        toast({
         title: "Invalid Item",
@@ -168,6 +158,7 @@ export const MealSplitter: FC = () => {
             cacheBust: true, 
             pixelRatio: 2,
             fontEmbedCSS: fontEmbedCSS,
+            backgroundColor: 'hsl(var(--card))'
         });
         const link = document.createElement('a');
         link.download = 'meal-split-bill.png';
@@ -179,77 +170,12 @@ export const MealSplitter: FC = () => {
     }
   };
 
-  const fetchAiHelp = useCallback(async (query: string) => {
-    if (!aiEnabled || query.trim().length < 2) {
-        setGuess('');
-        setSuggestions([]);
-        return;
-    }
-    setIsSuggesting(true);
-    try {
-        const [guessResult, suggestionsResult] = await Promise.all([
-            guessMenuItem(query),
-            suggestMenuItems(query)
-        ]);
-        
-        if (guessResult.guess.toLowerCase().startsWith(query.toLowerCase())) {
-            setGuess(guessResult.guess);
-        } else {
-            setGuess('');
-        }
-        setSuggestions(suggestionsResult.suggestions);
-
-    } catch (error) {
-        console.error("Error fetching AI help:", error);
-        setGuess('');
-        setSuggestions([]);
-    } finally {
-        setIsSuggesting(false);
-    }
-  }, [aiEnabled]);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-        if (newItemName) {
-            fetchAiHelp(newItemName);
-        } else {
-            setGuess('');
-            setSuggestions([]);
-        }
-    }, 500); // Debounce time of 500ms
-
-    return () => {
-        clearTimeout(handler);
-    };
-  }, [newItemName, fetchAiHelp]);
-  
-  const handleItemNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Tab' && guess) {
-      e.preventDefault();
-      setNewItemName(guess);
-      setGuess('');
-      setSuggestions([]);
-    }
+  const handleItemKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
         handleAddItem();
     }
   };
   
-  const handleSuggestionClick = (suggestion: string) => {
-    setNewItemName(suggestion);
-    setGuess('');
-    setSuggestions([]);
-    document.getElementById('item-price-input')?.focus();
-  };
-
-  const guessDisplay = useMemo(() => {
-    if (!guess || !newItemName) return '';
-    if (guess.toLowerCase().startsWith(newItemName.toLowerCase())) {
-      return newItemName + guess.substring(newItemName.length);
-    }
-    return '';
-  }, [guess, newItemName]);
-
   return (
     <div className="container mx-auto max-w-7xl">
       <header className="text-center mb-8 md:mb-12">
@@ -292,10 +218,6 @@ export const MealSplitter: FC = () => {
               <CardHeader>
                 <div className="flex justify-between items-center">
                     <CardTitle className="flex items-center gap-2 font-headline"><BookOpen className="text-primary"/> Add Item</CardTitle>
-                    <div className="flex items-center space-x-2">
-                        <Switch id="ai-switch" checked={aiEnabled} onCheckedChange={setAiEnabled} />
-                        <Label htmlFor="ai-switch" className="flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-yellow-400" /> AI</Label>
-                    </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4 flex-grow">
@@ -304,24 +226,11 @@ export const MealSplitter: FC = () => {
                         type="text" 
                         value={newItemName}
                         onChange={(e) => setNewItemName(e.target.value)}
-                        onKeyDown={handleItemNameKeyDown}
+                        onKeyDown={handleItemKeyDown}
                         placeholder="Item name (e.g., Pizza)"
                         className="bg-transparent"
                     />
-                     <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                        <span className="text-muted-foreground opacity-50">{guessDisplay}</span>
-                    </div>
-                     {isSuggesting && (
-                        <Loader2 className="animate-spin h-5 w-5 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2" />
-                    )}
                  </div>
-                 {aiEnabled && suggestions.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                        {suggestions.map((s, i) => (
-                           <Button key={i} variant="outline" size="sm" onClick={() => handleSuggestionClick(s)}>{s}</Button>
-                        ))}
-                    </div>
-                 )}
                 <div className="flex gap-4">
                     <Input 
                       id="item-price-input"
@@ -330,7 +239,7 @@ export const MealSplitter: FC = () => {
                       onChange={(e) => setNewItemPrice(e.target.value)}
                       placeholder="Price"
                       className="w-2/3"
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddItem()}
+                      onKeyDown={handleItemKeyDown}
                     />
                     <Input 
                       type="number"
@@ -339,7 +248,7 @@ export const MealSplitter: FC = () => {
                       onChange={(e) => setNewItemQuantity(e.target.value)}
                       placeholder="Qty"
                        className="w-1/3"
-                       onKeyDown={(e) => e.key === 'Enter' && handleAddItem()}
+                       onKeyDown={handleItemKeyDown}
                     />
                 </div>
               </CardContent>
