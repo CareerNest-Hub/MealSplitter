@@ -22,7 +22,7 @@ type Item = {
 
 export const MealSplitter: FC = () => {
   const { toast } = useToast();
-  const [friends, setFriends] = useState<string[]>(['You']);
+  const [friends, setFriends] = useState<string[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [newFriendName, setNewFriendName] = useState('');
   const [newItemName, setNewItemName] = useState('');
@@ -51,7 +51,6 @@ export const MealSplitter: FC = () => {
   };
   
   const handleRemoveFriend = (nameToRemove: string) => {
-    if (nameToRemove === 'You') return;
     setFriends(friends.filter(friend => friend !== nameToRemove));
     setItems(currentItems => currentItems.map(item => {
       const newConsumers = new Set(item.consumers);
@@ -198,11 +197,9 @@ export const MealSplitter: FC = () => {
                   {friends.map(friend => (
                     <Badge key={friend} variant="secondary" className="text-base py-1 px-3 flex items-center gap-1">
                       {friend}
-                      {friend !== 'You' && (
-                        <button onClick={() => handleRemoveFriend(friend)} className="ml-1 rounded-full hover:bg-muted p-0.5 transition-colors">
-                          <X className="h-4 w-4" />
-                        </button>
-                      )}
+                      <button onClick={() => handleRemoveFriend(friend)} className="ml-1 rounded-full hover:bg-muted p-0.5 transition-colors">
+                        <X className="h-4 w-4" />
+                      </button>
                     </Badge>
                   ))}
                 </div>
