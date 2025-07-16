@@ -11,8 +11,9 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from "@/hooks/use-toast"
-import { UserPlus, Utensils, Trash2, X, Users, PlusCircle, ImageDown, Sparkles, Loader2 } from 'lucide-react';
+import { UserPlus, Trash2, X, Users, PlusCircle, ImageDown, Sparkles, Loader2, BookOpen } from 'lucide-react';
 import { guessMenuItem } from '@/ai/flows/guess-menu-item';
+import { suggestMenuItems } from '@/ai/flows/suggest-menu-items';
 
 type Item = {
   id: string;
@@ -32,7 +33,8 @@ export const MealSplitter: FC = () => {
   const [newItemQuantity, setNewItemQuantity] = useState('1');
   
   const [aiEnabled, setAiEnabled] = useState(true);
-  const [suggestion, setSuggestion] = useState('');
+  const [guess, setGuess] = useState('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isSuggesting, setIsSuggesting] = useState(false);
 
   const resultsCardRef = useRef<HTMLDivElement>(null);
@@ -82,7 +84,8 @@ export const MealSplitter: FC = () => {
       setNewItemName('');
       setNewItemPrice('');
       setNewItemQuantity('1');
-      setSuggestion('');
+      setGuess('');
+      setSuggestions([]);
     } else {
        toast({
         title: "Invalid Item",
@@ -175,22 +178,30 @@ export const MealSplitter: FC = () => {
     }
   };
 
-  const fetchSuggestion = useCallback(async (query: string) => {
+  const fetchAiHelp = useCallback(async (query: string) => {
     if (!aiEnabled || query.trim().length < 2) {
-        setSuggestion('');
+        setGuess('');
+        setSuggestions([]);
         return;
     }
     setIsSuggesting(true);
     try {
-        const result = await guessMenuItem(query);
-        if (result.guess.toLowerCase().startsWith(query.toLowerCase())) {
-            setSuggestion(result.guess);
+        const [guessResult, suggestionsResult] = await Promise.all([
+            guessMenuItem(query),
+            suggestMenuItems(query)
+        ]);
+        
+        if (guessResult.guess.toLowerCase().startsWith(query.toLowerCase())) {
+            setGuess(guessResult.guess);
         } else {
-            setSuggestion('');
+            setGuess('');
         }
+        setSuggestions(suggestionsResult.suggestions);
+
     } catch (error) {
-        console.error("Error fetching suggestion:", error);
-        setSuggestion('');
+        console.error("Error fetching AI help:", error);
+        setGuess('');
+        setSuggestions([]);
     } finally {
         setIsSuggesting(false);
     }
@@ -199,35 +210,44 @@ export const MealSplitter: FC = () => {
   useEffect(() => {
     const handler = setTimeout(() => {
         if (newItemName) {
-            fetchSuggestion(newItemName);
+            fetchAiHelp(newItemName);
         } else {
-            setSuggestion('');
+            setGuess('');
+            setSuggestions([]);
         }
     }, 500); // Debounce time of 500ms
 
     return () => {
         clearTimeout(handler);
     };
-  }, [newItemName, fetchSuggestion]);
+  }, [newItemName, fetchAiHelp]);
   
   const handleItemNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Tab' && suggestion) {
+    if (e.key === 'Tab' && guess) {
       e.preventDefault();
-      setNewItemName(suggestion);
-      setSuggestion('');
+      setNewItemName(guess);
+      setGuess('');
+      setSuggestions([]);
     }
     if (e.key === 'Enter') {
         handleAddItem();
     }
   };
+  
+  const handleSuggestionClick = (suggestion: string) => {
+    setNewItemName(suggestion);
+    setGuess('');
+    setSuggestions([]);
+    document.getElementById('item-price-input')?.focus();
+  };
 
-  const suggestionDisplay = useMemo(() => {
-    if (!suggestion || !newItemName) return '';
-    if (suggestion.toLowerCase().startsWith(newItemName.toLowerCase())) {
-      return newItemName + suggestion.substring(newItemName.length);
+  const guessDisplay = useMemo(() => {
+    if (!guess || !newItemName) return '';
+    if (guess.toLowerCase().startsWith(newItemName.toLowerCase())) {
+      return newItemName + guess.substring(newItemName.length);
     }
     return '';
-  }, [suggestion, newItemName]);
+  }, [guess, newItemName]);
 
   return (
     <div className="container mx-auto max-w-7xl">
@@ -270,7 +290,7 @@ export const MealSplitter: FC = () => {
             <Card className="flex flex-col">
               <CardHeader>
                 <div className="flex justify-between items-center">
-                    <CardTitle className="flex items-center gap-2 font-headline"><Utensils className="text-primary"/> Add Item</CardTitle>
+                    <CardTitle className="flex items-center gap-2 font-headline"><BookOpen className="text-primary"/> Add Item</CardTitle>
                     <div className="flex items-center space-x-2">
                         <Switch id="ai-switch" checked={aiEnabled} onCheckedChange={setAiEnabled} />
                         <Label htmlFor="ai-switch" className="flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-yellow-400" /> AI</Label>
@@ -288,14 +308,22 @@ export const MealSplitter: FC = () => {
                         className="bg-transparent"
                     />
                      <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                        <span className="text-muted-foreground opacity-50">{suggestionDisplay}</span>
+                        <span className="text-muted-foreground opacity-50">{guessDisplay}</span>
                     </div>
                      {isSuggesting && (
                         <Loader2 className="animate-spin h-5 w-5 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2" />
                     )}
                  </div>
+                 {aiEnabled && suggestions.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                        {suggestions.map((s, i) => (
+                           <Button key={i} variant="outline" size="sm" onClick={() => handleSuggestionClick(s)}>{s}</Button>
+                        ))}
+                    </div>
+                 )}
                 <div className="flex gap-4">
                     <Input 
+                      id="item-price-input"
                       type="number"
                       value={newItemPrice}
                       onChange={(e) => setNewItemPrice(e.target.value)}
